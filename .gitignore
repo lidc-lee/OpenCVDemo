@@ -1,8 +1,10 @@
+.idea/
+.gradle/
+build/
+bin/
 *.iml
-.gradle
-/local.properties
-/.idea/workspace.xml
-/.idea/libraries
-.DS_Store
-/build
-/captures
+local.properties
+*.apk
+app/secure.properties
+projectFilesBackup/
+

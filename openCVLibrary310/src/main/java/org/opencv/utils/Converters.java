@@ -1,5 +1,7 @@
 package org.opencv.utils;
 
+import android.util.Log;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -265,6 +267,7 @@ public class Converters {
             long addr = (((long) buff[i * 2]) << 32) | (((long) buff[i * 2 + 1]) & 0xffffffffL);
             mats.add(new Mat(addr));
         }
+        Log.e("mats.size()",mats.size()+"");
     }
 
     public static Mat vector_float_to_Mat(List<Float> fs) {

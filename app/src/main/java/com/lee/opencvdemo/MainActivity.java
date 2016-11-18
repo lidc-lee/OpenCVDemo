@@ -49,7 +49,12 @@ public class MainActivity extends AppCompatActivity {
         btn_2.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                OpenCVLoader.initAsync(OpenCVLoader.OPENCV_VERSION_3_1_0,MainActivity.this,baseLoaderCallback);
+                if (!OpenCVLoader.initDebug()){
+                    OpenCVLoader.initAsync(OpenCVLoader.OPENCV_VERSION_3_1_0,MainActivity.this,baseLoaderCallback);
+                }else {
+                    baseLoaderCallback.onManagerConnected(LoaderCallbackInterface.SUCCESS);
+                }
+
             }
         });
     }
