@@ -24,6 +24,7 @@ import org.opencv.ml.Ml;
 import java.util.ArrayList;
 import java.util.List;
 
+import static org.opencv.imgproc.Imgproc.drawContours;
 import static org.opencv.imgproc.Imgproc.floodFill;
 import static org.opencv.imgproc.Imgproc.resize;
 
@@ -45,22 +46,23 @@ public class OpencvUtils {
     public  void recognizeIDCardInfo(Mat inputImage,String path){
 //        获取通道图片
         Mat imgChannel = getImageChannel(inputImage);
+        Log.e(TAG,"--imgChannel--"+imgChannel);
         //获取身份证号码区域
         List<RotatedRect> rects = positionDetect(imgChannel);
         Log.e(TAG,rects.size()+"");
         //获取身份证号码字符矩阵
-        Mat output = normalPosArea(imgChannel,rects.get(0));
-        Log.e(TAG,"获取身份证号码字符矩阵"+output.size());
-        //获得切割的矩阵
-        List<Mat> char_mat = char_segmet(output);
-
-        ANN_MLP ann_mlp = ANN_MLP.create();
-        try {
-            ann_train(ann_mlp,10,24,path);
-        } catch (JSONException e) {
-            e.printStackTrace();
-        }
-        classify(ann_mlp,char_mat);
+//        Mat output = normalPosArea(imgChannel,rects.get(0));
+//        Log.e(TAG,"获取身份证号码字符矩阵"+output.size());
+//        //获得切割的矩阵
+//        List<Mat> char_mat = char_segmet(output);
+//
+//        ANN_MLP ann_mlp = ANN_MLP.create();
+//        try {
+//            ann_train(ann_mlp,10,24,path);
+//        } catch (JSONException e) {
+//            e.printStackTrace();
+//        }
+//        classify(ann_mlp,char_mat);
 
     }
 
@@ -182,7 +184,7 @@ public class OpencvUtils {
         //分割BGR3通道
         List<Mat> splitRGB = new ArrayList<>(inputImage.channels());
         Core.split(inputImage,splitRGB);
-        if (inputImage.cols()>600){
+        if (inputImage.cols()>600 | inputImage.cols()>700){
             Mat mat = new Mat(450,600, CvType.CV_8UC1);
             resize(splitRGB.get(2),mat,mat.size());
             return mat;
@@ -200,7 +202,7 @@ public class OpencvUtils {
         //二值化输出Mat
          Mat threshold_R = OstuBeresenThreshold(inputImage);
 
-        Mat imaInv = new Mat(inputImage.size(),inputImage.type(),Scalar.all(255));
+        Mat imaInv = new Mat(inputImage.size(),inputImage.type(),new Scalar(255));
         //黑白色翻转，即背景色为黑色
         Mat threshold_Inv = new Mat();
         Core.subtract(imaInv,threshold_R,threshold_Inv);
@@ -216,8 +218,6 @@ public class OpencvUtils {
         Imgproc.findContours(threshold_Inv,contours,imaInv,Imgproc.CV_RETR_EXTERNAL,Imgproc.CV_CHAIN_APPROX_NONE);
 //        Log.e(TAG,"--imaInv--"+imaInv);
 //        Log.e(TAG,"--contours.size--"+contours.size());
-
-
 
 //        //对候选的轮廓进一步筛选
         for (int i =0;i<contours.size();i++){
@@ -269,14 +269,15 @@ public class OpencvUtils {
                 double tmp[] = doubleMatIn.get(i,j);
                 double tmp2[] = output.get(i,j);
                 if (i<2 || i>rows-3 || j<2 || j>rows-3){
-                    if (tmp[0] < beta_lowT){
+                    if (tmp[0] <= beta_lowT){
                         tmp2[0] = 0;
                     }else {
                         tmp2[0] = 255;
                     }
                 }else {
                     Rect rect = new Rect(i-2,j-2,5,5);
-                    Mat tt = doubleMatIn.submat(rect);
+                    Mat tt = new Mat(doubleMatIn,rect);
+//                    Mat tt = doubleMatIn.submat(rect);
                     Scalar scalar = Core.sumElems(tt);
                     Tbn = scalar.val[0]/25;
                     if (tmp[0]<beta_lowT || tmp[0]<Tbn && (beta_lowT<=tmp[0] && tmp[0]>=beta_highT)){
@@ -286,26 +287,26 @@ public class OpencvUtils {
                     }
                 }
                 output.put(i,j,tmp2);
-//                Log.e(TAG,output.get(i,j)[0]+"");
+                Log.e(TAG,output.get(i,j)[0]+"");
             }
 
         }
-        Log.e(TAG,"--OstuBeresenThreshold--"+output.size());
+        Log.e(TAG,"--OstuBeresenThreshold--"+output);
         return output;
     }
 
     private boolean isEligible(RotatedRect rect){
-        float error = 0.4f;
-        final float aspect = (float)(4.5/0.3);//长宽比
+        float error = 0.2f;
+        final float aspect = (float) (4.5/0.3);//长宽比
         int min = (int) (10 * aspect * 10);//最小区域
         int max = (int) (50 * aspect * 50);//最大区域
-        float rmin = aspect - 2*aspect*error;//考虑误差后的最小长宽比
-        float rmax = aspect + 2*aspect*error;//考虑误差后的最大长宽比
+        float rmin = aspect - aspect*error;//考虑误差后的最小长宽比
+        float rmax = aspect + aspect*error;//考虑误差后的最大长宽比
 
-        int area = (int)rect.size.height * (int)rect.size.width;
+        int area = (int) (rect.size.height )*(int) (rect.size.width);
         float r = (float) (rect.size.width / rect.size.height);
 
-        if (r<1){
+        if (r<1&&r>0){
             r = 1/r;
         }
 //        Log.e(TAG,"--min--"+min+"--max--"+max+"--rmin--"+rmin+"--rmax--"+rmax);

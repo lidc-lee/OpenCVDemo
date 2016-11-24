@@ -36,12 +36,14 @@ import static org.opencv.imgcodecs.Imgcodecs.imread;
  * Created by AA on 2016/11/15.
  */
 
-public class IDActivity extends Activity {
+public class IDActivity extends Activity implements View.OnClickListener {
+    private static final int CAMERA_RESULT = 100;
     Button bt_sc;
     ImageView iv_sfz;
     TextView tv_id_card;
     Button bt_sb;
-    boolean flag=false;
+    private String imageFilePath;
+    private boolean isPictureSelected=false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -57,76 +59,56 @@ public class IDActivity extends Activity {
         tv_id_card = (TextView) findViewById(R.id.tv_id_card);
         bt_sb = (Button) findViewById(R.id.bt_sb);
 
-        bt_sc.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                chooseImgFromCamera();
-            }
-        });
-        bt_sb.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-//                if (flag){
-                    if (!OpenCVLoader.initDebug()){
-                        OpenCVLoader.initAsync(OpenCVLoader.OPENCV_VERSION_3_1_0,IDActivity.this,baseLoaderCallback);
-                    }else {
-                        baseLoaderCallback.onManagerConnected(LoaderCallbackInterface.SUCCESS);
-//                    }
+        bt_sc.setOnClickListener(this);
+        bt_sb.setOnClickListener(this);
+
+    }
+    @Override
+    public void onClick(View view) {
+        switch (view.getId()) {
+            case R.id.bt_sc:
+                openCamera();
+                break;
+            case R.id.bt_sb:
+                if (!OpenCVLoader.initDebug()) {
+                    OpenCVLoader.initAsync(OpenCVLoader.OPENCV_VERSION_3_1_0, IDActivity.this, baseLoaderCallback);
+                } else {
+                    baseLoaderCallback.onManagerConnected(LoaderCallbackInterface.SUCCESS);
                 }
-            }
-        });
-
-    }
-    /**打开照相机拍照*/
-    private void chooseImgFromCamera() {
-        Intent intentFromCamera = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-
-        if (hasSdcard()){
-            intentFromCamera.putExtra(MediaStore.EXTRA_OUTPUT, Uri.fromFile(new File(Environment.getExternalStorageDirectory(), "idcard.jpg")));
-        }
-
-        startActivityForResult(intentFromCamera, 121);
-    }
-
-    private static boolean hasSdcard() {
-        String state = Environment.getExternalStorageState();
-
-        if (state.equals(Environment.MEDIA_MOUNTED)){
-            return true;
-        }
-        else{
-            return false;
+                break;
         }
     }
+    private void openCamera() {
+        imageFilePath = Environment.getExternalStorageDirectory().getAbsolutePath() + "/idcard.jpg";
+        File imageFile = new File(imageFilePath);
+        Uri imageFileUri = Uri.fromFile(imageFile);
+
+        Intent i = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+        i.putExtra(MediaStore.EXTRA_OUTPUT, imageFileUri);
+        startActivityForResult(i, CAMERA_RESULT);
+    }
+
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        switch (requestCode){
-            case 121:
-                if (hasSdcard()){
-                    File tempFile = new File(Environment.getExternalStorageDirectory(), "idcard.jpg");
-
-                    BitmapFactory.Options bmpFactoryOptions = new BitmapFactory.Options();
-                    bmpFactoryOptions.inJustDecodeBounds = true;
-                    bmpFactoryOptions.inSampleSize = calculateInSampleSize(bmpFactoryOptions, 1280, 800);
-
-                    bmpFactoryOptions.inJustDecodeBounds = false;
-
-                    Bitmap photo = BitmapFactory.decodeFile(tempFile.getPath(), bmpFactoryOptions);
-                    iv_sfz.setImageBitmap(photo);
-
-                }
-                else{
-                    Toast.makeText(this,"没有SD卡!",Toast.LENGTH_LONG);
-                }
-                break;
-            case 122:
-                if (data != null){
-                    setImageToHeadView(data);
-                }
-                break;
-        }
         super.onActivityResult(requestCode, resultCode, data);
+        if (resultCode == RESULT_OK) {
+
+            BitmapFactory.Options bmpFactoryOptions = new BitmapFactory.Options();
+            bmpFactoryOptions.inJustDecodeBounds = true;
+
+            bmpFactoryOptions.inSampleSize = calculateInSampleSize(bmpFactoryOptions, 1280, 800);
+
+            bmpFactoryOptions.inJustDecodeBounds = false;
+
+            Bitmap bmp = BitmapFactory.decodeFile(imageFilePath, bmpFactoryOptions);
+
+            iv_sfz.setImageBitmap(bmp);
+
+//            saveBitmap(bmp);
+
+            isPictureSelected = true;
+        }
     }
     private int calculateInSampleSize(BitmapFactory.Options options,
                                       int reqWidth, int reqHeight) {
@@ -147,45 +129,25 @@ public class IDActivity extends Activity {
         return inSampleSize;
     }
 
-    private void cropRawPhoto(Uri uri){
-        Intent intent = new Intent("com.android.camera.action.CROP");
-        intent.setDataAndType(uri, "image/*");
-
-        intent.putExtra("crop", "true");
-
-        intent.putExtra("aspectX", 1.5);//宽高比例
-        intent.putExtra("aspectY", 1);
-
-        intent.putExtra("outputX", 300);
-        intent.putExtra("outputY", 200);
-        intent.putExtra("return-data", true);
-
-        startActivityForResult(intent, 122);
-    }
-    private void setImageToHeadView(Intent intent){
-        Bundle extras = intent.getExtras();
-
-        if (extras != null){
-            Bitmap photo = extras.getParcelable("data");
-            iv_sfz.setImageBitmap(photo);
-            flag = true;
-        }else {
-            flag = false;
-        }
-    }
 
     private BaseLoaderCallback baseLoaderCallback =new BaseLoaderCallback(this) {
         @Override
         public void onManagerConnected(int status) {
             if (status == LoaderCallbackInterface.SUCCESS){
 
-                String imageFilePath = Environment.getExternalStorageDirectory().getAbsolutePath() + "/idcard.jpg";
-
-//                String imagePath = Environment.getExternalStorageDirectory().getAbsolutePath()+"/sfz.jpg";
-//                Log.e("imagePath",imagePath);
+//                if (!isPictureSelected) {
+//                    Toast.makeText(IDActivity.this, "请先选取图片", Toast.LENGTH_LONG);
+//                    return;
+//                }
+                imageFilePath = Environment.getExternalStorageDirectory().getAbsolutePath() + "/idcard.jpg";
                 Mat matPath = Imgcodecs.imread(imageFilePath);
                 OpencvUtils opencvUtils = new OpencvUtils();
                 opencvUtils.recognizeIDCardInfo(matPath,ReadJson());
+                Log.e("imageFilePath",imageFilePath);
+
+//                String result = OpenCVHelper.recognizeIDCard(getAssets(), "ann_xml.xml", imageFilePath);
+//                String[] ret = result.split(",");
+//                tv_id_card.setText(ret[1]);
             }else {
                 super.onManagerConnected(status);
             }
